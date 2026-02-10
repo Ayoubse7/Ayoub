@@ -1,0 +1,7 @@
+{
+  "name": "APL",
+  "description": "Plateforme intelligente de prospection B2B spécialisée dans la génération et l'analyse de leads pour les équipements de laboratoire au Maroc.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
