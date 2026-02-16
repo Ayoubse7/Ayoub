@@ -18,7 +18,8 @@ const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
 
   // 1. Sector Distribution (Real Data)
   const sectorCounts = leads.reduce((acc: any, lead) => {
-    acc[lead.secteur] = (acc[lead.secteur] || 0) + 1;
+    const sector = lead.secteur || "Inconnu";
+    acc[sector] = (acc[sector] || 0) + 1;
     return acc;
   }, {});
 
@@ -28,7 +29,7 @@ const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
   }));
 
   // 2. Real KPI Calculations
-  const leadsToday = leads.filter(l => l.date_capture.startsWith(today)).length;
+  const leadsToday = leads.filter(l => l.date_capture && typeof l.date_capture === 'string' && l.date_capture.startsWith(today)).length;
   const leadGoal = 20;
   const progressPercent = Math.min((leadsToday / leadGoal) * 100, 100);
 
@@ -41,7 +42,7 @@ const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
   const avgScore = leads.length > 0 ? Math.round(totalScore / leads.length) : 0;
 
   // Real Pipeline Value (Assuming average 25k EUR per interested equipment)
-  const totalEquipments = leads.reduce((acc, l) => acc + l.equipements_interesses.length, 0);
+  const totalEquipments = leads.reduce((acc, l) => acc + (l.equipements_interesses?.length || 0), 0);
   const pipelineValue = totalEquipments * 25000;
 
   // 3. Generation Trend (Real Data grouped by day)
@@ -52,7 +53,7 @@ const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
   });
 
   const dataTrends = last7Days.map(date => {
-    const count = leads.filter(l => l.date_capture.startsWith(date)).length;
+    const count = leads.filter(l => l.date_capture && typeof l.date_capture === 'string' && l.date_capture.startsWith(date)).length;
     const dayLabel = new Date(date).toLocaleDateString('fr-FR', { weekday: 'short' });
     return { day: dayLabel, leads: count };
   });
@@ -60,9 +61,11 @@ const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
   // 4. Real Equipment Demand
   const equipmentFrequency: Record<string, number> = {};
   leads.forEach(l => {
-    l.equipements_interesses.forEach(eq => {
-      equipmentFrequency[eq] = (equipmentFrequency[eq] || 0) + 1;
-    });
+    if (l.equipements_interesses && Array.isArray(l.equipements_interesses)) {
+      l.equipements_interesses.forEach(eq => {
+        equipmentFrequency[eq] = (equipmentFrequency[eq] || 0) + 1;
+      });
+    }
   });
 
   const topEquipments = Object.entries(equipmentFrequency)

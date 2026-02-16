@@ -14,7 +14,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   supportEmail: 'contact@votre-entreprise.ma'
 };
 
-const Settings: React.FC = () => {
+interface SettingsProps {
+  onSave?: () => void;
+}
+
+const Settings: React.FC<SettingsProps> = ({ onSave }) => {
   const [settings, setSettings] = React.useState<AppSettings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = React.useState(false);
 
@@ -39,6 +43,7 @@ const Settings: React.FC = () => {
     e.preventDefault();
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     setSaved(true);
+    if (onSave) onSave();
     setTimeout(() => setSaved(false), 3000);
   };
 
@@ -52,18 +57,23 @@ const Settings: React.FC = () => {
         {saved && (
           <div className="flex items-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-lg border border-green-100 animate-bounce">
             <i className="fa-solid fa-check-circle"></i>
-            <span className="text-xs font-bold uppercase">Sauvegardé !</span>
+            <span className="text-xs font-bold uppercase">Enregistré & Sync !</span>
           </div>
         )}
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Intégrations Data */}
         <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
             <i className="fa-solid fa-database text-blue-600"></i> Export & Intégration
           </h3>
           <div className="space-y-4">
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
+              <p className="text-xs text-blue-700 font-medium leading-relaxed">
+                <i className="fa-solid fa-circle-info mr-2"></i>
+                Une fois enregistré, LabLeads importera automatiquement les données depuis votre Google Sheet. Assurez-vous que le fichier est <strong>Publié sur le web</strong> (Fichier > Partager).
+              </p>
+            </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Lien Google Sheet (Sauvegarde Leads)</label>
               <div className="relative">
@@ -74,7 +84,8 @@ const Settings: React.FC = () => {
                   value={settings.googleSheetLink}
                   onChange={handleChange}
                   placeholder="https://docs.google.com/spreadsheets/d/..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  required
                 />
               </div>
             </div>
@@ -87,14 +98,13 @@ const Settings: React.FC = () => {
                   name="supportEmail"
                   value={settings.supportEmail}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 />
               </div>
             </div>
           </div>
         </section>
 
-        {/* Liens Commerciaux */}
         <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
             <i className="fa-solid fa-shop text-blue-600"></i> Liens Commerciaux
@@ -109,8 +119,7 @@ const Settings: React.FC = () => {
                   name="catalogLink"
                   value={settings.catalogLink}
                   onChange={handleChange}
-                  placeholder="https://..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
             </div>
@@ -123,15 +132,13 @@ const Settings: React.FC = () => {
                   name="storeLink"
                   value={settings.storeLink}
                   onChange={handleChange}
-                  placeholder="https://..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
             </div>
           </div>
         </section>
 
-        {/* Réseaux Sociaux */}
         <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
             <i className="fa-solid fa-share-nodes text-blue-600"></i> Réseaux Sociaux
@@ -141,57 +148,29 @@ const Settings: React.FC = () => {
               <label className="block text-[10px] font-bold text-slate-500 mb-1">LinkedIn</label>
               <div className="relative">
                 <i className="fa-brands fa-linkedin absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input 
-                  type="url" 
-                  name="linkedinLink"
-                  value={settings.linkedinLink}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+                <input type="url" name="linkedinLink" value={settings.linkedinLink} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 mb-1">Instagram</label>
               <div className="relative">
                 <i className="fa-brands fa-instagram absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input 
-                  type="url" 
-                  name="instagramLink"
-                  value={settings.instagramLink}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+                <input type="url" name="instagramLink" value={settings.instagramLink} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 mb-1">Facebook</label>
               <div className="relative">
                 <i className="fa-brands fa-facebook absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input 
-                  type="url" 
-                  name="facebookLink"
-                  value={settings.facebookLink}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+                <input type="url" name="facebookLink" value={settings.facebookLink} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
             </div>
           </div>
         </section>
 
-        <div className="flex justify-end gap-4">
-          <button 
-            type="button"
-            className="px-6 py-2.5 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-100 transition-all"
-            onClick={() => window.location.reload()}
-          >
-            Annuler
-          </button>
-          <button 
-            type="submit"
-            className="px-8 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
-          >
-            <i className="fa-solid fa-floppy-disk"></i> Enregistrer les Modifications
+        <div className="flex justify-end gap-4 pt-4">
+          <button type="submit" className="px-10 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-2xl shadow-blue-300 hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+            <i className="fa-solid fa-floppy-disk"></i> Enregistrer & Lancer la Sync IA
           </button>
         </div>
       </form>

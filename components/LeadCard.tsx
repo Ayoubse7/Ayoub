@@ -25,7 +25,7 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, onSelect }) => {
         <div>
           <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">{lead.nom_entreprise}</h3>
           <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-1 font-medium">
-            <i className="fa-solid fa-location-dot text-blue-500"></i> {lead.localisation.ville}
+            <i className="fa-solid fa-location-dot text-blue-500"></i> {lead.localisation?.ville || "Ville non spécifiée"}
           </p>
         </div>
         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border whitespace-nowrap ${getIntentionColor(lead.niveau_intention)}`}>
@@ -39,7 +39,7 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, onSelect }) => {
           <i className="fa-solid fa-bolt-lightning animate-pulse"></i> Signal détecté
         </p>
         <p className="text-xs text-slate-700 font-medium leading-relaxed italic">
-          "{lead.raison_opportunite || lead.mot_cle_declencheur}"
+          "{lead.raison_opportunite || lead.mot_cle_declencheur || "Analyse en cours..."}"
         </p>
       </div>
 
@@ -51,7 +51,7 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, onSelect }) => {
         <div className="flex items-center gap-2 text-[11px] text-slate-600">
           <i className="fa-solid fa-tags w-4 text-slate-400"></i>
           <div className="flex gap-1 overflow-hidden">
-            {lead.equipements_interesses.slice(0, 2).map((eq, i) => (
+            {lead.equipements_interesses && Array.isArray(lead.equipements_interesses) && lead.equipements_interesses.slice(0, 2).map((eq, i) => (
               <span key={i} className="bg-slate-50 px-2 py-0.5 rounded text-[9px] border border-slate-100 font-semibold">{eq}</span>
             ))}
           </div>
@@ -60,7 +60,7 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, onSelect }) => {
 
       <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-auto">
         <div className="text-[9px] text-slate-400 font-medium">
-          Détecté le {new Date(lead.date_capture).toLocaleDateString()}
+          Détecté le {lead.date_capture ? new Date(lead.date_capture).toLocaleDateString() : 'N/A'}
         </div>
         <button className="text-blue-600 text-[10px] font-bold flex items-center gap-1 hover:translate-x-1 transition-transform">
           ANALYSER <i className="fa-solid fa-chevron-right text-[9px]"></i>
