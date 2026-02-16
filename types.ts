@@ -40,6 +40,7 @@ export interface Lead {
 export interface AppSettings {
   googleSheetLink: string;
   catalogLink: string;
+  catalogDescription: string;
   storeLink: string;
   instagramLink: string;
   facebookLink: string;

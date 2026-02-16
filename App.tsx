@@ -12,8 +12,9 @@ import { fetchGoogleSheetData, parseLeadsFromSheet } from './services/geminiServ
 
 type ViewState = 'dashboard' | 'leads' | 'deepdive' | 'analysis' | 'settings';
 
-const STORAGE_KEY = 'lableads_ma_leads';
-const SETTINGS_KEY = 'lableads_ma_settings';
+const STORAGE_KEY = 'sales_pl_leads';
+const SETTINGS_KEY = 'sales_pl_settings';
+const SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = React.useState<ViewState>('dashboard');
@@ -22,9 +23,15 @@ const App: React.FC = () => {
   const [filterSector, setFilterSector] = React.useState<string>('Tous');
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [lastSyncTime, setLastSyncTime] = React.useState<string | null>(null);
 
-  // 1. Charger les leads du localStorage au démarrage
+  // Charger les leads du localStorage au démarrage
   React.useEffect(() => {
+    const oldLeads = localStorage.getItem('lableads_ma_leads');
+    if (oldLeads && !localStorage.getItem(STORAGE_KEY)) {
+      localStorage.setItem(STORAGE_KEY, oldLeads);
+    }
+
     const savedLeads = localStorage.getItem(STORAGE_KEY);
     if (savedLeads) {
       try {
@@ -32,36 +39,94 @@ const App: React.FC = () => {
         if (Array.isArray(parsed)) setLeads(parsed);
       } catch (e) { console.error(e); }
     }
+    
+    const savedSync = localStorage.getItem('sales_pl_last_sync');
+    if (savedSync) setLastSyncTime(savedSync);
   }, []);
 
-  const handleSyncLeads = async () => {
+  /**
+   * Fusionne les leads importés avec les existants pour préserver la date de capture
+   * et identifier les nouveaux éléments.
+   */
+  const mergeLeadsData = (existing: Lead[], imported: Lead[]): Lead[] => {
+    const now = new Date().toISOString();
+    
+    return imported.map(imp => {
+      // Chercher si ce lead existe déjà (par ID, ou par Nom + Email)
+      const found = existing.find(ext => 
+        (ext.id === imp.id && imp.id && !imp.id.startsWith('L-')) || 
+        (ext.nom_entreprise.toLowerCase() === imp.nom_entreprise.toLowerCase() && 
+         ext.contact?.email?.toLowerCase() === imp.contact?.email?.toLowerCase())
+      );
+
+      if (found) {
+        // Le lead existe déjà : on garde sa date de capture originale
+        // mais on met à jour les autres infos du Sheet
+        return { 
+          ...imp, 
+          id: found.id, 
+          date_capture: found.date_capture || now 
+        };
+      } else {
+        // C'est un nouveau lead détecté aujourd'hui
+        return { 
+          ...imp, 
+          date_capture: imp.date_capture || now 
+        };
+      }
+    });
+  };
+
+  /**
+   * Fonction de synchronisation centrale
+   */
+  const performSync = async (silent = false) => {
     const settingsStr = localStorage.getItem(SETTINGS_KEY);
     const settings = settingsStr ? JSON.parse(settingsStr) : {};
     
     if (!settings.googleSheetLink) {
-      setErrorMessage("Veuillez configurer un lien Google Sheet dans les paramètres.");
+      if (!silent) setErrorMessage("Veuillez configurer un lien Google Sheet dans les paramètres.");
       return;
     }
 
-    setIsSyncing(true);
+    if (!silent) setIsSyncing(true);
     setErrorMessage(null);
     
     try {
       const csvData = await fetchGoogleSheetData(settings.googleSheetLink);
-      const importedLeads = await parseLeadsFromSheet(csvData);
+      const rawImportedLeads = await parseLeadsFromSheet(csvData);
       
-      if (importedLeads && importedLeads.length > 0) {
-        setLeads(importedLeads);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(importedLeads));
+      if (rawImportedLeads && rawImportedLeads.length > 0) {
+        // Logique de détection des nouveaux éléments
+        const mergedLeads = mergeLeadsData(leads, rawImportedLeads);
+        
+        setLeads(mergedLeads);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedLeads));
+        
+        const nowStr = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        setLastSyncTime(nowStr);
+        localStorage.setItem('sales_pl_last_sync', nowStr);
       } else {
-        throw new Error("Gemini n'a pu extraire aucun lead. Vérifiez que votre tableau contient bien des données.");
+        if (!silent) throw new Error("Aucun lead trouvé dans le fichier.");
       }
     } catch (e: any) {
       console.error("Erreur sync:", e.message);
-      setErrorMessage(e.message);
+      if (!silent) setErrorMessage(e.message);
     } finally {
-      setIsSyncing(false);
+      if (!silent) setIsSyncing(false);
     }
+  };
+
+  // Synchronisation automatique toutes les 10 minutes
+  React.useEffect(() => {
+    const intervalId = setInterval(() => {
+      performSync(true);
+    }, SYNC_INTERVAL_MS);
+    return () => clearInterval(intervalId);
+  }, [leads]); // Dépendance sur leads pour avoir la version à jour lors du merge
+
+  const handleManualSync = () => {
+    performSync(false);
   };
 
   const filteredLeads = leads.filter(l => filterSector === 'Tous' || l.secteur === filterSector);
@@ -82,7 +147,7 @@ const App: React.FC = () => {
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/50">
             <i className="fa-solid fa-microscope text-xl"></i>
           </div>
-          <h1 className="font-bold text-xl tracking-tight">LabLeads <span className="text-blue-500">MA</span></h1>
+          <h1 className="font-bold text-xl tracking-tight">Sales<span className="text-blue-500">_PL</span></h1>
         </div>
 
         <nav className="flex-1 px-4 mt-6">
@@ -110,9 +175,17 @@ const App: React.FC = () => {
         
         <div className="p-6 border-t border-slate-800 mt-auto bg-slate-900">
            <div className="text-[10px] text-slate-500 font-bold uppercase mb-2 text-center">Statut Intégration</div>
-           <div className="flex items-center justify-center gap-2 bg-slate-800/50 py-2 rounded-lg">
-              <span className={`w-2 h-2 rounded-full ${leads.length > 0 ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`}></span>
-              <span className="text-[10px] text-slate-300 font-bold">{leads.length} leads synchronisés</span>
+           <div className="flex flex-col gap-2 bg-slate-800/50 p-3 rounded-lg">
+              <div className="flex items-center justify-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${leads.length > 0 ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                <span className="text-[10px] text-slate-300 font-bold">{leads.length} leads actifs</span>
+              </div>
+              {lastSyncTime && (
+                <div className="text-[9px] text-slate-500 text-center flex items-center justify-center gap-1">
+                  <i className="fa-solid fa-clock text-[8px]"></i>
+                  Dernière synchro : {lastSyncTime}
+                </div>
+              )}
            </div>
         </div>
       </aside>
@@ -124,7 +197,7 @@ const App: React.FC = () => {
           </h2>
           <div className="flex items-center gap-4">
              <button 
-                onClick={handleSyncLeads}
+                onClick={handleManualSync}
                 disabled={isSyncing}
                 className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-100 flex items-center gap-2"
              >
@@ -203,7 +276,7 @@ const App: React.FC = () => {
           )}
 
           {currentView === 'deepdive' && <EquipmentDeepDive />}
-          {currentView === 'settings' && <Settings onSave={() => { handleSyncLeads(); setCurrentView('leads'); }} />}
+          {currentView === 'settings' && <Settings onSave={() => { performSync(false); setCurrentView('leads'); }} />}
         </div>
       </main>
     </div>

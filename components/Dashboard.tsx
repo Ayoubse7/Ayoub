@@ -14,9 +14,11 @@ interface DashboardProps {
 const COLORS = [UI_COLORS.primary, UI_COLORS.info, UI_COLORS.success, UI_COLORS.warning, UI_COLORS.secondary];
 
 const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
-  const today = new Date().toISOString().split('T')[0];
+  // Récupérer la date locale au format YYYY-MM-DD pour la comparaison
+  const todayDate = new Date();
+  const todayStr = todayDate.toLocaleDateString('en-CA'); // Format YYYY-MM-DD
 
-  // 1. Sector Distribution (Real Data)
+  // 1. Sector Distribution
   const sectorCounts = leads.reduce((acc: any, lead) => {
     const sector = lead.secteur || "Inconnu";
     acc[sector] = (acc[sector] || 0) + 1;
@@ -29,11 +31,18 @@ const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
   }));
 
   // 2. Real KPI Calculations
-  const leadsToday = leads.filter(l => l.date_capture && typeof l.date_capture === 'string' && l.date_capture.startsWith(today)).length;
+  // Calculer les leads capturés aujourd'hui (basé sur date_capture)
+  const leadsToday = leads.filter(l => {
+    if (!l.date_capture) return false;
+    // On compare le début de la chaîne ISO ou la date formatée
+    const captureDateStr = new Date(l.date_capture).toLocaleDateString('en-CA');
+    return captureDateStr === todayStr;
+  }).length;
+  
   const leadGoal = 20;
   const progressPercent = Math.min((leadsToday / leadGoal) * 100, 100);
 
-  // Calculate Avg Score based on Intention Levels (Real approximation)
+  // Score moyen de qualification
   const totalScore = leads.reduce((acc, l) => {
     if (l.niveau_intention === "Haute") return acc + 90;
     if (l.niveau_intention === "Moyenne") return acc + 60;
@@ -41,24 +50,27 @@ const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
   }, 0);
   const avgScore = leads.length > 0 ? Math.round(totalScore / leads.length) : 0;
 
-  // Real Pipeline Value (Assuming average 25k EUR per interested equipment)
+  // Valeur Pipeline Estimée
   const totalEquipments = leads.reduce((acc, l) => acc + (l.equipements_interesses?.length || 0), 0);
   const pipelineValue = totalEquipments * 25000;
 
-  // 3. Generation Trend (Real Data grouped by day)
+  // 3. Generation Trend (7 derniers jours)
   const last7Days = [...Array(7)].map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    return d.toISOString().split('T')[0];
+    return d.toLocaleDateString('en-CA');
   });
 
   const dataTrends = last7Days.map(date => {
-    const count = leads.filter(l => l.date_capture && typeof l.date_capture === 'string' && l.date_capture.startsWith(date)).length;
+    const count = leads.filter(l => {
+      if (!l.date_capture) return false;
+      return new Date(l.date_capture).toLocaleDateString('en-CA') === date;
+    }).length;
     const dayLabel = new Date(date).toLocaleDateString('fr-FR', { weekday: 'short' });
     return { day: dayLabel, leads: count };
   });
 
-  // 4. Real Equipment Demand
+  // 4. Equipment Demand
   const equipmentFrequency: Record<string, number> = {};
   leads.forEach(l => {
     if (l.equipements_interesses && Array.isArray(l.equipements_interesses)) {
